@@ -1,5 +1,10 @@
 # Flight-Guard
 
+[![CI](https://github.com/atharvadevne123/Flight-Guard/actions/workflows/ci.yml/badge.svg)](https://github.com/atharvadevne123/Flight-Guard/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Palantir Foundry](https://img.shields.io/badge/Palantir-Foundry-orange)](https://www.palantir.com/platforms/foundry/)
+
 > Real-time flight delay prediction API — XGBoost-LightGBM ensemble with carrier risk scoring, route analysis, weather encoding, and Palantir Foundry integration.
 
 ## Overview
@@ -48,6 +53,8 @@ Flight-Guard predicts the probability and expected magnitude of a flight delay i
 | `POST` | `/predict/batch` | Score up to 100 flights |
 | `GET` | `/carrier-risk/<code>` | Carrier risk profile (e.g. `/carrier-risk/AA`) |
 | `GET` | `/route-analysis` | Route delay statistics (`?origin=ORD&dest=LAX`) |
+| `GET` | `/weather-impact` | Delay multiplier by weather condition and hour |
+| `GET` | `/delay-stats` | Aggregate on-time stats across all carriers |
 | `GET` | `/health` | Liveness probe |
 | `GET` | `/metrics` | Prometheus metrics |
 | `GET` | `/model/info` | Model version and feature metadata |
