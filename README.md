@@ -149,6 +149,54 @@ FLIGHTS_DATASET_RID=ri.foundry.main.dataset.xxxxxxxx
 PREDICTIONS_DATASET_RID=ri.foundry.main.dataset.yyyyyyyy
 ```
 
+### Method Reference
+
+| Method | Description |
+|---|---|
+| `upload_dataset(df, dataset_rid, branch)` | Upload a DataFrame as a Parquet transaction |
+| `read_dataset(dataset_rid, branch, row_limit)` | Read a dataset branch into a DataFrame |
+| `register_model(model_metadata)` | Register a model artifact in Model Health |
+| `log_predictions(predictions_df, dataset_rid, branch)` | Append timestamped prediction rows |
+| `create_dataset(name, parent_folder_rid)` | Create a new dataset in a Compass folder |
+| `list_branches(dataset_rid)` | List all branches of a dataset |
+| `get_schema(dataset_rid, branch)` | Fetch the dataset's Foundry schema |
+| `validate_data_quality(df, required_columns, max_null_fraction)` | Pre-upload null/duplicate/column checks |
+| `publish_to_pipeline(pipeline_rid, params)` | Trigger a Foundry pipeline build |
+| `get_build_status(build_rid)` | Poll the status of a build |
+| `batch_upload(dfs, dataset_rid, branch, max_workers)` | Concurrent multi-frame upload |
+| `create_transaction(dataset_rid, branch, txn_type)` | Open a SNAPSHOT/APPEND/UPDATE/DELETE transaction |
+| `commit_transaction(dataset_rid, txn_rid)` | Commit an open transaction |
+| `abort_transaction(dataset_rid, txn_rid)` | Abort a transaction, discarding staged files |
+| `stream_records(dataset_rid, branch, chunk_size)` | Iterate the dataset in DataFrame chunks |
+| `get_lineage(dataset_rid, depth)` | Fetch upstream/downstream lineage graph |
+| `subscribe_to_dataset(dataset_rid, callback, poll_interval)` | Poll for new commits and invoke a callback |
+| `enforce_schema(df, schema)` | Validate/coerce a DataFrame against a schema |
+| `export_snapshot(dataset_rid, output_path, branch, fmt)` | Export a branch to local Parquet/CSV |
+| `push_metrics(model_rid, metrics)` | Push monitoring metrics to Model Health |
+| `health_check()` | Verify connectivity and authentication |
+| `__enter__` / `__exit__` | Context-manager support (closes the session) |
+| `async_upload_dataset(df, dataset_rid, branch)` | Non-blocking upload returning a `Future` |
+
+All API failures raise `FoundryError`; schema mismatches raise `FoundrySchemaError`. The underlying `requests.Session` retries 429/5xx responses with exponential backoff.
+
+### Advanced Usage
+
+```python
+import os
+from foundry import FoundryClient
+
+with FoundryClient(host=os.environ["FOUNDRY_HOST"], token=os.environ["FOUNDRY_TOKEN"]) as client:
+    # Stream a large dataset in 10k-row chunks instead of loading it all
+    for chunk in client.stream_records(os.environ["FLIGHTS_DATASET_RID"], chunk_size=10_000):
+        process(chunk)
+
+    # Fire-and-forget upload in a background thread
+    future = client.async_upload_dataset(predictions_df, os.environ["PREDICTIONS_DATASET_RID"])
+    ...  # keep working while the upload runs
+    result = future.result(timeout=300)
+    print(result["transaction_rid"])
+```
+
 ## Quick Start
 
 ```bash
