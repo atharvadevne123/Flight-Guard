@@ -105,6 +105,17 @@ def train_model(
     joblib.dump(full_pipeline, MODEL_PATH)
     METRICS_PATH.write_text(json.dumps(metrics, indent=2))
 
+    try:
+        from app.tracking import log_training_run
+
+        log_training_run(
+            metrics,
+            params={"cv_folds": cv_folds, "ensemble": "xgb+lgbm+rf"},
+            tags={"model_version": MODEL_VERSION},
+        )
+    except Exception as exc:
+        logger.warning("Experiment tracking failed: %s", exc)
+
     logger.info(
         "Model trained: AUC=%.4f±%.4f, ACC=%.4f, samples=%d",
         metrics["auc_mean"],
