@@ -180,9 +180,14 @@ def predict_batch(
     description="Returns CV AUC, accuracy, and training metadata.",
 )
 def model_metrics() -> MetricsResponse:
-    """Return model training metrics."""
+    """Return model training metrics (cached for 15 seconds)."""
+    from app.cache import metrics_cache
+
+    cached = metrics_cache.get("model_metrics")
+    if cached is not None:
+        return cached
     m = load_metrics()
-    return MetricsResponse(
+    response = MetricsResponse(
         auc_mean=m.get("auc_mean"),
         auc_std=m.get("auc_std"),
         accuracy_mean=m.get("accuracy_mean"),
@@ -190,6 +195,8 @@ def model_metrics() -> MetricsResponse:
         model_version=m.get("model_version", "unknown"),
         status=m.get("status"),
     )
+    metrics_cache.set("model_metrics", response)
+    return response
 
 
 @api.get(
@@ -223,6 +230,27 @@ def prediction_stats(
         raise HTTPException(status_code=422, detail="hours must be between 1 and 720")
     stats = get_prediction_stats(db, hours=hours)
     return PredictionStatsResponse(**stats)
+
+
+@api.get(
+    "/forecast",
+    summary="Delay trend forecast",
+    description=(
+        "Fits a linear trend to recent prediction scores and projects the "
+        "delay-probability trajectory over the requested horizon."
+    ),
+)
+def delay_forecast(horizon: int = 7) -> dict:
+    """Forecast the delay-probability trend from the rolling prediction window."""
+    if horizon < 1 or horizon > 90:
+        raise HTTPException(status_code=422, detail="horizon must be between 1 and 90")
+    from app.forecasting import linear_trend_forecast
+    from app.monitoring import _prediction_window
+
+    values = list(_prediction_window)
+    result = linear_trend_forecast(values, horizon=horizon)
+    result["history_size"] = len(values)
+    return result
 
 
 # Mount versioned router
