@@ -24,3 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - GitHub Actions CI: ruff lint, format check, pytest.
 - Full pytest suite covering API, model, features, and monitoring.
 - Architecture diagram generator script.
+- Time-series delay-trend forecasting (`/api/v1/forecast`) with SMA, linear trend,
+  and naive seasonal decomposition.
+- FAISS route similarity index with NumPy brute-force fallback.
+- MLflow experiment tracking with JSONL file fallback, wired into every training run.
+- Thread-safe TTL cache on the metrics endpoint.
+- Alembic migrations, CLI training script, dev data seeder, and example API client.
