@@ -119,6 +119,11 @@ KS-test result comparing recent prediction scores against the reference distribu
 Aggregated prediction volume, average/p95 delay probability, and delay rate for the
 last N hours (1–720).
 
+### GET `/api/v1/forecast?horizon=7`
+
+Linear-trend forecast of the delay-probability trajectory over the next N steps
+(1–90), fitted on the rolling window of recent prediction scores.
+
 ## Architecture
 
 ![Architecture](screenshots/architecture.png)
@@ -143,6 +148,11 @@ Client ──▶ Middleware (Corr-ID, Rate Limit) ──▶ FastAPI /api/v1
 - `app/main.py` — FastAPI app, versioned router, lifespan model loading.
 - `app/middleware.py` — rate limiting and correlation ID middleware.
 - `pipelines/retrain_dag.py` — Airflow weekly retraining DAG with quality gates.
+- `app/forecasting.py` — SMA, linear trend forecast, naive seasonal decomposition.
+- `app/similarity.py` — FAISS route similarity index (brute-force fallback).
+- `app/tracking.py` — MLflow experiment tracking with JSONL fallback.
+- `app/cache.py` / `app/config.py` — TTL response cache and env-driven settings.
+- `migrations/` — Alembic schema migrations (SQLite dev, PostgreSQL prod).
 
 ## License
 
