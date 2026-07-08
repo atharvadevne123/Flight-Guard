@@ -155,3 +155,71 @@ class TestStatsEndpoint:
             headers={"X-Correlation-ID": "test-corr-123"},
         )
         assert resp.headers.get("X-Correlation-ID") == "test-corr-123"
+
+
+class TestForecastEndpoint:
+    def test_forecast_returns_200(self, client):
+        resp = client.get("/api/v1/forecast")
+        assert resp.status_code == 200
+
+    def test_forecast_structure(self, client):
+        resp = client.get("/api/v1/forecast")
+        data = resp.json()
+        assert "trend" in data
+        assert "history_size" in data
+
+    def test_forecast_custom_horizon(self, client, sample_flight_request):
+        # Generate some history first
+        for _ in range(5):
+            client.post("/api/v1/predict", json=sample_flight_request)
+        resp = client.get("/api/v1/forecast?horizon=14")
+        assert resp.status_code == 200
+
+    def test_forecast_invalid_horizon(self, client):
+        resp = client.get("/api/v1/forecast?horizon=0")
+        assert resp.status_code == 422
+
+    def test_forecast_horizon_too_large(self, client):
+        resp = client.get("/api/v1/forecast?horizon=91")
+        assert resp.status_code == 422
+
+
+class TestValidationEdgeCases:
+    def test_carrier_lowercased_input_normalised(self, client):
+        req = {
+            "carrier": "aa",
+            "origin": "jfk",
+            "destination": "lax",
+            "scheduled_hour": 8,
+            "day_of_week": 1,
+            "month": 7,
+            "distance_km": 3983.0,
+        }
+        resp = client.post("/api/v1/predict", json=req)
+        assert resp.status_code == 200
+
+    def test_carrier_too_short_rejected(self, client, sample_flight_request):
+        resp = client.post("/api/v1/predict", json={**sample_flight_request, "carrier": "A"})
+        assert resp.status_code == 422
+
+    def test_origin_too_long_rejected(self, client, sample_flight_request):
+        resp = client.post("/api/v1/predict", json={**sample_flight_request, "origin": "TOOLONG"})
+        assert resp.status_code == 422
+
+    def test_missing_required_field_rejected(self, client, sample_flight_request):
+        req = dict(sample_flight_request)
+        del req["carrier"]
+        resp = client.post("/api/v1/predict", json=req)
+        assert resp.status_code == 422
+
+    def test_distance_above_max_rejected(self, client, sample_flight_request):
+        resp = client.post(
+            "/api/v1/predict", json={**sample_flight_request, "distance_km": 30000.0}
+        )
+        assert resp.status_code == 422
+
+    def test_default_distance_used_when_omitted(self, client, sample_flight_request):
+        req = dict(sample_flight_request)
+        del req["distance_km"]
+        resp = client.post("/api/v1/predict", json=req)
+        assert resp.status_code == 200
