@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "flight-guard"
+version = "1.0.0"
+description = "Real-time flight delay prediction API using XGBoost-LightGBM ensemble"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Reflective Lantern", email = "devneatharva@gmail.com"},
+]
+keywords = ["flight", "delay", "prediction", "machine-learning", "fastapi"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.11",
+    "Framework :: FastAPI",
+]
+dependencies = [
+    "fastapi>=0.111.1",
+    "uvicorn[standard]>=0.30.1",
+    "sqlalchemy>=2.0.31",
+    "pydantic>=2.8.2",
+    "scikit-learn>=1.5.1",
+    "xgboost>=2.1.0",
+    "lightgbm>=4.4.0",
+    "scipy>=1.14.0",
+    "numpy>=1.26.4",
+    "pandas>=2.2.2",
+    "joblib>=1.4.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3.2", "ruff>=0.5.4", "httpx>=0.27.0"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "N", "W"]
+ignore = ["E501", "N803", "N806"]  # X/y are sklearn convention
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
