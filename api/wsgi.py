@@ -16,9 +16,9 @@ _ROOT = Path(__file__).parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from loguru import logger
+from loguru import logger  # noqa: E402
 
-from api.app import _load_models, app
+from api.app import _load_models, app  # noqa: E402
 
 logger.info("WSGI startup — loading Flight-Guard models…")
 try:

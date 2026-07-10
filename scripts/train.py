@@ -17,10 +17,10 @@ import pandas as pd
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from loguru import logger
+from loguru import logger  # noqa: E402
 
-from models.ensemble.delay_predictor import DelayPredictor
-from pipeline.feature_engineering import FlightFeatureEngineer
+from models.ensemble.delay_predictor import DelayPredictor  # noqa: E402
+from pipeline.feature_engineering import FlightFeatureEngineer  # noqa: E402
 
 
 def generate_synthetic_data(n: int = 10000) -> pd.DataFrame:
