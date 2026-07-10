@@ -98,7 +98,7 @@ class RouteRiskProfile:
     p90_delay_minutes: float
     is_hub_to_hub: bool
     is_eastbound: bool
-    route_distance_miles: Optional[float]
+    route_distance_miles: float | None
     sample_size: int
     breakdown: dict = field(default_factory=dict)
 
@@ -145,9 +145,9 @@ class CarrierRiskScorer:
     def score_carrier(
         self,
         carrier_code: str,
-        history_df: Optional[pd.DataFrame] = None,
-        departure_hour: Optional[int] = None,
-        weather_condition: Optional[str] = None,
+        history_df: pd.DataFrame | None = None,
+        departure_hour: int | None = None,
+        weather_condition: str | None = None,
     ) -> CarrierRiskProfile:
         """Compute a composite risk score for a carrier.
 
@@ -237,7 +237,7 @@ class CarrierRiskScorer:
         self,
         origin: str,
         destination: str,
-        history_df: Optional[pd.DataFrame] = None,
+        history_df: pd.DataFrame | None = None,
     ) -> RouteRiskProfile:
         """Compute delay risk profile for an origin-destination route.
 
@@ -325,7 +325,7 @@ _WEATHER_SEVERITY: dict[str, float] = {
 }
 
 
-def _weather_severity(condition: Optional[str]) -> float:
+def _weather_severity(condition: str | None) -> float:
     """Return 0-1 severity factor for a weather condition string."""
     if condition is None:
         return 0.10  # mild unknown exposure

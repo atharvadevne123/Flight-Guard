@@ -192,7 +192,7 @@ class FlightFeatureEngineer:
     # Public API
     # ------------------------------------------------------------------
 
-    def fit(self, df: pd.DataFrame) -> "FlightFeatureEngineer":
+    def fit(self, df: pd.DataFrame) -> FlightFeatureEngineer:
         """Learn carrier-level statistics from training data.
 
         Requires columns: carrier_code, dep_delay_minutes (or is_delayed).
@@ -329,7 +329,7 @@ class FlightFeatureEngineer:
 
         # Direction encoding (0=eastbound, 1=westbound, 2=northbound, 3=southbound)
         df["flight_direction"] = [
-            _encode_direction(o, d) for o, d in zip(origin.str.upper(), dest.str.upper())
+            _encode_direction(o, d) for o, d in zip(origin.str.upper(), dest.str.upper(), strict=False)
         ]
 
         return df

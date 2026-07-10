@@ -11,8 +11,9 @@ from __future__ import annotations
 import concurrent.futures
 import io
 import time
+from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
-from typing import Any, Callable, Iterator, Optional
+from typing import Any, Optional
 
 import pandas as pd
 import requests
@@ -83,7 +84,7 @@ class FoundryClient:
     # Context manager
     # ------------------------------------------------------------------
 
-    def __enter__(self) -> "FoundryClient":
+    def __enter__(self) -> FoundryClient:
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
@@ -164,7 +165,7 @@ class FoundryClient:
         self,
         dataset_rid: str,
         branch: str = "master",
-        row_limit: Optional[int] = None,
+        row_limit: int | None = None,
     ) -> pd.DataFrame:
         """Read a Foundry dataset branch into a DataFrame.
 
@@ -256,7 +257,7 @@ class FoundryClient:
     def validate_data_quality(
         self,
         df: pd.DataFrame,
-        required_columns: Optional[list[str]] = None,
+        required_columns: list[str] | None = None,
         max_null_fraction: float = 0.5,
     ) -> dict:
         """Run lightweight data-quality checks on a DataFrame before upload.
@@ -292,7 +293,7 @@ class FoundryClient:
             logger.warning("Data-quality issues: {}", issues)
         return {"passed": passed, "issues": issues, "row_count": len(df)}
 
-    def publish_to_pipeline(self, pipeline_rid: str, params: Optional[dict] = None) -> dict:
+    def publish_to_pipeline(self, pipeline_rid: str, params: dict | None = None) -> dict:
         """Trigger a Foundry pipeline (build) run.
 
         Args:
@@ -345,7 +346,7 @@ class FoundryClient:
             List of upload result dicts, in input order.
         """
         logger.info("Batch-uploading {} frames to {}.", len(dfs), dataset_rid)
-        results: list[Optional[dict]] = [None] * len(dfs)
+        results: list[dict | None] = [None] * len(dfs)
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
             futures = {
                 pool.submit(self.upload_dataset, df, dataset_rid, branch): i
@@ -481,7 +482,7 @@ class FoundryClient:
         dataset_rid: str,
         callback: Callable[[dict], None],
         poll_interval: float = 30.0,
-        max_polls: Optional[int] = None,
+        max_polls: int | None = None,
     ) -> None:
         """Poll a dataset for new committed transactions and invoke a callback.
 
@@ -491,7 +492,7 @@ class FoundryClient:
             poll_interval: Seconds between polls.
             max_polls: Stop after this many polls (None = poll forever).
         """
-        last_txn: Optional[str] = None
+        last_txn: str | None = None
         polls = 0
         while max_polls is None or polls < max_polls:
             url = (
@@ -601,7 +602,7 @@ class FoundryClient:
         df: pd.DataFrame,
         dataset_rid: str,
         branch: str = "master",
-    ) -> "concurrent.futures.Future[dict]":
+    ) -> concurrent.futures.Future[dict]:
         """Upload a DataFrame in a background thread.
 
         Args:
@@ -665,7 +666,7 @@ class FoundryClient:
     def log_predictions(
         self,
         predictions_df: pd.DataFrame,
-        dataset_rid: Optional[str] = None,
+        dataset_rid: str | None = None,
         branch: str = "master",
     ) -> dict:
         """Append prediction rows to the Foundry predictions dataset.

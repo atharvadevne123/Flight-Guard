@@ -59,9 +59,9 @@ class DelayPredictor:
 
     def __init__(
         self,
-        xgb_params: Optional[dict] = None,
-        lgb_params: Optional[dict] = None,
-        rf_params: Optional[dict] = None,
+        xgb_params: dict | None = None,
+        lgb_params: dict | None = None,
+        rf_params: dict | None = None,
         calibration_method: str = "isotonic",
         random_state: int = 42,
     ):
@@ -104,9 +104,9 @@ class DelayPredictor:
         self.lgb_model = lgb.LGBMClassifier(**(lgb_params or _lgb))
         self.rf_model = RandomForestClassifier(**(rf_params or _rf))
 
-        self.ensemble: Optional[CalibratedClassifierCV] = None
+        self.ensemble: CalibratedClassifierCV | None = None
         self.scaler = StandardScaler()
-        self._shap_explainer: Optional[shap.TreeExplainer] = None
+        self._shap_explainer: shap.TreeExplainer | None = None
         self._fitted = False
 
     # ------------------------------------------------------------------
@@ -117,10 +117,10 @@ class DelayPredictor:
         self,
         X: pd.DataFrame,
         y: pd.Series,
-        eval_X: Optional[pd.DataFrame] = None,
-        eval_y: Optional[pd.Series] = None,
+        eval_X: pd.DataFrame | None = None,
+        eval_y: pd.Series | None = None,
         mlflow_run: bool = True,
-    ) -> "DelayPredictor":
+    ) -> DelayPredictor:
         """Fit the ensemble on labelled flight data.
 
         Args:
@@ -243,14 +243,14 @@ class DelayPredictor:
     # Persistence
     # ------------------------------------------------------------------
 
-    def save(self, path: Optional[Path] = None) -> Path:
+    def save(self, path: Path | None = None) -> Path:
         path = Path(path) if path else ARTIFACT_DIR / "delay_predictor.joblib"
         joblib.dump(self, path)
         logger.info("DelayPredictor saved → {}", path)
         return path
 
     @classmethod
-    def load(cls, path: Optional[Path] = None) -> "DelayPredictor":
+    def load(cls, path: Path | None = None) -> DelayPredictor:
         path = Path(path) if path else ARTIFACT_DIR / "delay_predictor.joblib"
         obj = joblib.load(path)
         logger.info("DelayPredictor loaded ← {}", path)
@@ -274,8 +274,8 @@ class DelayPredictor:
         self,
         X_train: np.ndarray,
         y_train: np.ndarray,
-        eval_X: Optional[pd.DataFrame],
-        eval_y: Optional[pd.Series],
+        eval_X: pd.DataFrame | None,
+        eval_y: pd.Series | None,
     ) -> None:
         train_proba = self.ensemble.predict_proba(X_train)[:, 1]
         mlflow.log_metric("train_auc_roc", roc_auc_score(y_train, train_proba))

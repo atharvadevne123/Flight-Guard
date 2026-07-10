@@ -53,7 +53,7 @@ class FlightDriftMonitor:
         self.ks_threshold = ks_threshold
         self.score_shift_threshold = score_shift_threshold
         self.min_samples = min_samples
-        self._reference: Optional[pd.DataFrame] = None
+        self._reference: pd.DataFrame | None = None
         self._load_reference()
 
     # ------------------------------------------------------------------
