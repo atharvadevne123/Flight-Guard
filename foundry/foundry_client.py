@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import concurrent.futures
 import io
-import json
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterator, Optional
@@ -59,15 +58,17 @@ class FoundryClient:
     """
 
     def __init__(self, host: str, token: str, timeout: int = 60, max_retries: int = 3):
-        self.host    = host.rstrip("/")
-        self.token   = token
+        self.host = host.rstrip("/")
+        self.token = token
         self.timeout = timeout
         self._session = requests.Session()
-        self._session.headers.update({
-            "Authorization": f"Bearer {token}",
-            "Content-Type":  "application/json",
-            "User-Agent":    "FlightGuard/1.0",
-        })
+        self._session.headers.update(
+            {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "User-Agent": "FlightGuard/1.0",
+            }
+        )
         retry = Retry(
             total=max_retries,
             backoff_factor=0.5,
@@ -115,7 +116,9 @@ class FoundryClient:
         """
         logger.info(
             "Uploading {:,} rows to Foundry dataset {} (branch={}).",
-            len(df), dataset_rid, branch,
+            len(df),
+            dataset_rid,
+            branch,
         )
 
         # 1. Open transaction
@@ -151,9 +154,7 @@ class FoundryClient:
 
         # 3. Commit transaction
         committed = self.commit_transaction(dataset_rid, txn_rid)
-        logger.success(
-            "Dataset {} updated (txn={}).", dataset_rid, txn_rid
-        )
+        logger.success("Dataset {} updated (txn={}).", dataset_rid, txn_rid)
         return {
             "transaction_rid": txn_rid,
             "committed_at": committed.get("closedTime", datetime.now(timezone.utc).isoformat()),
@@ -232,9 +233,7 @@ class FoundryClient:
         Returns:
             List of branch metadata dicts.
         """
-        url = (
-            f"{self.host}/foundry-catalog/api/catalog/datasets/{dataset_rid}/branches"
-        )
+        url = f"{self.host}/foundry-catalog/api/catalog/datasets/{dataset_rid}/branches"
         resp = self._session.get(url, timeout=self.timeout)
         self._raise_for_status(resp, "list_branches")
         return resp.json().get("branches", [])
@@ -249,10 +248,7 @@ class FoundryClient:
         Returns:
             Schema dict with a "fieldSchemaList" of column definitions.
         """
-        url = (
-            f"{self.host}/foundry-metadata/api/schemas/datasets/{dataset_rid}"
-            f"/branches/{branch}"
-        )
+        url = f"{self.host}/foundry-metadata/api/schemas/datasets/{dataset_rid}/branches/{branch}"
         resp = self._session.get(url, timeout=self.timeout)
         self._raise_for_status(resp, "get_schema")
         return resp.json().get("schema", resp.json())
@@ -276,7 +272,7 @@ class FoundryClient:
         issues: list[str] = []
         if df.empty:
             issues.append("DataFrame is empty.")
-        for col in (required_columns or []):
+        for col in required_columns or []:
             if col not in df.columns:
                 issues.append(f"Missing required column: {col}")
         if len(df) > 0:
@@ -380,9 +376,7 @@ class FoundryClient:
         Returns:
             dict with the transaction "rid".
         """
-        url = (
-            f"{self.host}/foundry-catalog/api/catalog/datasets/{dataset_rid}/transactions"
-        )
+        url = f"{self.host}/foundry-catalog/api/catalog/datasets/{dataset_rid}/transactions"
         resp = self._session.post(
             url,
             json={"branch": branch, "type": txn_type},
@@ -533,9 +527,7 @@ class FoundryClient:
         expected = [f["name"] for f in fields]
         missing = [c for c in expected if c not in df.columns]
         if missing:
-            raise FoundrySchemaError(
-                f"DataFrame missing required columns: {missing}"
-            )
+            raise FoundrySchemaError(f"DataFrame missing required columns: {missing}")
         extra = [c for c in df.columns if c not in expected]
         if extra:
             logger.warning("Dropping columns not in schema: {}", extra)
@@ -647,18 +639,17 @@ class FoundryClient:
         """
         logger.info(
             "Registering model '{}' v{} in Foundry.",
-            model_metadata.get("model_name"), model_metadata.get("version"),
+            model_metadata.get("model_name"),
+            model_metadata.get("version"),
         )
         url = f"{self.host}/model-health/api/registry/models"
         payload = {
-            "modelName":   model_metadata.get("model_name", "flight_guard_delay_predictor"),
-            "version":     model_metadata.get("version", "1.0.0"),
+            "modelName": model_metadata.get("model_name", "flight_guard_delay_predictor"),
+            "version": model_metadata.get("version", "1.0.0"),
             "artifactPath": model_metadata.get("artifact_path", ""),
-            "metrics":     model_metadata.get("metrics", {}),
-            "trainedAt":   model_metadata.get(
-                "trained_at", datetime.now(timezone.utc).isoformat()
-            ),
-            "framework":   "sklearn/xgboost/lightgbm",
+            "metrics": model_metadata.get("metrics", {}),
+            "trainedAt": model_metadata.get("trained_at", datetime.now(timezone.utc).isoformat()),
+            "framework": "sklearn/xgboost/lightgbm",
             "description": "Flight delay prediction ensemble (XGB+LGB+RF).",
         }
         resp = self._session.post(url, json=payload, timeout=self.timeout)
@@ -715,7 +706,9 @@ class FoundryClient:
         if not resp.ok:
             logger.error(
                 "Foundry API error during '{}': HTTP {} — {}",
-                operation, resp.status_code, resp.text[:300],
+                operation,
+                resp.status_code,
+                resp.text[:300],
             )
             raise FoundryError(
                 f"Foundry API error during '{operation}': "

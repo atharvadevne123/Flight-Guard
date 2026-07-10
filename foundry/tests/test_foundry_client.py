@@ -11,13 +11,30 @@ import pytest
 from foundry.foundry_client import FoundryClient, FoundryError, FoundrySchemaError
 
 EXPECTED_METHODS = [
-    "upload_dataset", "read_dataset", "register_model", "log_predictions",
-    "create_dataset", "list_branches", "get_schema", "validate_data_quality",
-    "publish_to_pipeline", "get_build_status", "batch_upload",
-    "create_transaction", "commit_transaction", "abort_transaction",
-    "stream_records", "get_lineage", "subscribe_to_dataset", "enforce_schema",
-    "export_snapshot", "push_metrics", "health_check",
-    "__enter__", "__exit__", "async_upload_dataset",
+    "upload_dataset",
+    "read_dataset",
+    "register_model",
+    "log_predictions",
+    "create_dataset",
+    "list_branches",
+    "get_schema",
+    "validate_data_quality",
+    "publish_to_pipeline",
+    "get_build_status",
+    "batch_upload",
+    "create_transaction",
+    "commit_transaction",
+    "abort_transaction",
+    "stream_records",
+    "get_lineage",
+    "subscribe_to_dataset",
+    "enforce_schema",
+    "export_snapshot",
+    "push_metrics",
+    "health_check",
+    "__enter__",
+    "__exit__",
+    "async_upload_dataset",
 ]
 
 
@@ -66,9 +83,13 @@ def test_raise_for_status_raises_foundry_error(client):
 
 def test_upload_dataset_commits_transaction(client):
     df = pd.DataFrame({"a": [1, 2], "b": ["x", "y"]})
-    with mock.patch.object(client, "create_transaction", return_value={"rid": "txn-1"}), \
-         mock.patch.object(client._session, "post", return_value=_mock_response()) as post, \
-         mock.patch.object(client, "commit_transaction", return_value={"closedTime": "2026-01-01T00:00:00Z"}) as commit:
+    with (
+        mock.patch.object(client, "create_transaction", return_value={"rid": "txn-1"}),
+        mock.patch.object(client._session, "post", return_value=_mock_response()) as post,
+        mock.patch.object(
+            client, "commit_transaction", return_value={"closedTime": "2026-01-01T00:00:00Z"}
+        ) as commit,
+    ):
         result = client.upload_dataset(df, "ri.foundry.main.dataset.abc")
     assert result["transaction_rid"] == "txn-1"
     assert result["committed_at"] == "2026-01-01T00:00:00Z"
@@ -79,9 +100,11 @@ def test_upload_dataset_commits_transaction(client):
 def test_upload_dataset_aborts_on_failure(client):
     df = pd.DataFrame({"a": [1]})
     bad = _mock_response(ok=False, status_code=503)
-    with mock.patch.object(client, "create_transaction", return_value={"rid": "txn-2"}), \
-         mock.patch.object(client._session, "post", return_value=bad), \
-         mock.patch.object(client, "abort_transaction", return_value={}) as abort:
+    with (
+        mock.patch.object(client, "create_transaction", return_value={"rid": "txn-2"}),
+        mock.patch.object(client._session, "post", return_value=bad),
+        mock.patch.object(client, "abort_transaction", return_value={}) as abort,
+    ):
         with pytest.raises(FoundryError):
             client.upload_dataset(df, "ri.x")
     abort.assert_called_once_with("ri.x", "txn-2")
@@ -133,9 +156,8 @@ def test_stream_records_paginates(client):
 
 def test_health_check_handles_connection_error(client):
     import requests as _requests
-    with mock.patch.object(
-        client._session, "get", side_effect=_requests.ConnectionError("down")
-    ):
+
+    with mock.patch.object(client._session, "get", side_effect=_requests.ConnectionError("down")):
         result = client.health_check()
     assert result["healthy"] is False
 
@@ -150,7 +172,8 @@ def test_async_upload_returns_future(client):
 def test_batch_upload_preserves_order(client):
     frames = [pd.DataFrame({"a": [i]}) for i in range(3)]
     with mock.patch.object(
-        client, "upload_dataset",
+        client,
+        "upload_dataset",
         side_effect=lambda df, rid, branch: {"n": int(df["a"].iloc[0])},
     ):
         results = client.batch_upload(frames, "ri.x")

@@ -25,7 +25,9 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_restx import Api, Resource, fields
 from loguru import logger
-from marshmallow import Schema, ValidationError, fields as ma_fields, validate as ma_validate
+from marshmallow import Schema, ValidationError
+from marshmallow import fields as ma_fields
+from marshmallow import validate as ma_validate
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 # ─── App bootstrap ────────────────────────────────────────────────────────────
@@ -70,9 +72,9 @@ DELAY_PROB_HISTOGRAM = Histogram(
 
 # ─── Delay tier thresholds ────────────────────────────────────────────────────
 
-THRESHOLD_SEVERE   = float(os.getenv("THRESHOLD_SEVERE",   "0.75"))
+THRESHOLD_SEVERE = float(os.getenv("THRESHOLD_SEVERE", "0.75"))
 THRESHOLD_MODERATE = float(os.getenv("THRESHOLD_MODERATE", "0.50"))
-THRESHOLD_MINOR    = float(os.getenv("THRESHOLD_MINOR",    "0.25"))
+THRESHOLD_MINOR = float(os.getenv("THRESHOLD_MINOR", "0.25"))
 
 # ─── Model loading ────────────────────────────────────────────────────────────
 
@@ -87,6 +89,7 @@ _feature_cols: list = []
 def _load_models() -> None:
     global _ensemble, _carrier_risk_scorer, _feature_engineer, _feature_cols
     import json
+
     import joblib
 
     sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -94,8 +97,8 @@ def _load_models() -> None:
     from models.risk.carrier_risk_scorer import CarrierRiskScorer
 
     ensemble_path = MODEL_DIR / "delay_predictor.joblib"
-    fe_path       = MODEL_DIR / "feature_engineer.joblib"
-    cols_path     = MODEL_DIR / "feature_cols.json"
+    fe_path = MODEL_DIR / "feature_engineer.joblib"
+    cols_path = MODEL_DIR / "feature_cols.json"
 
     if ensemble_path.exists():
         _ensemble = DelayPredictor.load(ensemble_path)
@@ -117,103 +120,113 @@ def _load_models() -> None:
 # ─── Input validation ─────────────────────────────────────────────────────────
 
 VALID_PROTOCOLS = ["AA", "DL", "UA", "WN", "B6", "AS", "NK", "F9", "G4", "SY"]
-VALID_WEATHER   = ["clear", "rain", "snow", "fog", "wind"]
+VALID_WEATHER = ["clear", "rain", "snow", "fog", "wind"]
 
 
 class FlightSchema(Schema):
-    flight_id              = ma_fields.Str(required=True)
-    carrier_code           = ma_fields.Str(required=True)
-    origin                 = ma_fields.Str(
-                                 required=True,
-                                 validate=ma_validate.Length(min=3, max=3,
-                                     error="origin must be a 3-letter IATA code."),
-                             )
-    destination            = ma_fields.Str(
-                                 required=True,
-                                 validate=ma_validate.Length(min=3, max=3,
-                                     error="destination must be a 3-letter IATA code."),
-                             )
-    scheduled_departure    = ma_fields.Str(required=True)
-    aircraft_type          = ma_fields.Str(load_default="unknown")
-    distance_miles         = ma_fields.Float(
-                                 load_default=None,
-                                 validate=ma_validate.Range(
-                                     min=0, min_inclusive=False,
-                                     error="distance_miles must be > 0.",
-                                 ),
-                             )
-    departure_hour         = ma_fields.Int(
-                                 load_default=12,
-                                 validate=ma_validate.Range(
-                                     min=0, max=23,
-                                     error="departure_hour must be 0-23.",
-                                 ),
-                             )
-    day_of_week            = ma_fields.Int(
-                                 load_default=0,
-                                 validate=ma_validate.Range(
-                                     min=0, max=6,
-                                     error="day_of_week must be 0-6.",
-                                 ),
-                             )
-    month                  = ma_fields.Int(
-                                 load_default=1,
-                                 validate=ma_validate.Range(
-                                     min=1, max=12,
-                                     error="month must be 1-12.",
-                                 ),
-                             )
-    is_holiday             = ma_fields.Bool(load_default=False)
+    flight_id = ma_fields.Str(required=True)
+    carrier_code = ma_fields.Str(required=True)
+    origin = ma_fields.Str(
+        required=True,
+        validate=ma_validate.Length(min=3, max=3, error="origin must be a 3-letter IATA code."),
+    )
+    destination = ma_fields.Str(
+        required=True,
+        validate=ma_validate.Length(
+            min=3, max=3, error="destination must be a 3-letter IATA code."
+        ),
+    )
+    scheduled_departure = ma_fields.Str(required=True)
+    aircraft_type = ma_fields.Str(load_default="unknown")
+    distance_miles = ma_fields.Float(
+        load_default=None,
+        validate=ma_validate.Range(
+            min=0,
+            min_inclusive=False,
+            error="distance_miles must be > 0.",
+        ),
+    )
+    departure_hour = ma_fields.Int(
+        load_default=12,
+        validate=ma_validate.Range(
+            min=0,
+            max=23,
+            error="departure_hour must be 0-23.",
+        ),
+    )
+    day_of_week = ma_fields.Int(
+        load_default=0,
+        validate=ma_validate.Range(
+            min=0,
+            max=6,
+            error="day_of_week must be 0-6.",
+        ),
+    )
+    month = ma_fields.Int(
+        load_default=1,
+        validate=ma_validate.Range(
+            min=1,
+            max=12,
+            error="month must be 1-12.",
+        ),
+    )
+    is_holiday = ma_fields.Bool(load_default=False)
     prior_leg_delay_minutes = ma_fields.Float(
-                                 load_default=0.0,
-                                 validate=ma_validate.Range(
-                                     min=0,
-                                     error="prior_leg_delay_minutes must be >= 0.",
-                                 ),
-                             )
-    weather_condition      = ma_fields.Str(
-                                 load_default="clear",
-                                 validate=ma_validate.OneOf(
-                                     VALID_WEATHER,
-                                     error=f"weather_condition must be one of: {VALID_WEATHER}.",
-                                 ),
-                             )
+        load_default=0.0,
+        validate=ma_validate.Range(
+            min=0,
+            error="prior_leg_delay_minutes must be >= 0.",
+        ),
+    )
+    weather_condition = ma_fields.Str(
+        load_default="clear",
+        validate=ma_validate.OneOf(
+            VALID_WEATHER,
+            error=f"weather_condition must be one of: {VALID_WEATHER}.",
+        ),
+    )
 
 
-_schema       = FlightSchema()
+_schema = FlightSchema()
 _batch_schema = FlightSchema(many=True)
 
 # ─── Swagger models ───────────────────────────────────────────────────────────
 
-flight_model = api.model("Flight", {
-    "flight_id":               fields.String(required=True, example="AA-2024-ORD-LAX-001"),
-    "carrier_code":            fields.String(required=True, example="AA"),
-    "origin":                  fields.String(required=True, example="ORD"),
-    "destination":             fields.String(required=True, example="LAX"),
-    "scheduled_departure":     fields.String(required=True, example="2024-06-15T08:30:00"),
-    "aircraft_type":           fields.String(example="B737"),
-    "distance_miles":          fields.Float(example=1745.0),
-    "departure_hour":          fields.Integer(example=8),
-    "day_of_week":             fields.Integer(example=4),
-    "month":                   fields.Integer(example=6),
-    "is_holiday":              fields.Boolean(example=False),
-    "prior_leg_delay_minutes": fields.Float(example=0.0),
-    "weather_condition":       fields.String(example="clear"),
-})
+flight_model = api.model(
+    "Flight",
+    {
+        "flight_id": fields.String(required=True, example="AA-2024-ORD-LAX-001"),
+        "carrier_code": fields.String(required=True, example="AA"),
+        "origin": fields.String(required=True, example="ORD"),
+        "destination": fields.String(required=True, example="LAX"),
+        "scheduled_departure": fields.String(required=True, example="2024-06-15T08:30:00"),
+        "aircraft_type": fields.String(example="B737"),
+        "distance_miles": fields.Float(example=1745.0),
+        "departure_hour": fields.Integer(example=8),
+        "day_of_week": fields.Integer(example=4),
+        "month": fields.Integer(example=6),
+        "is_holiday": fields.Boolean(example=False),
+        "prior_leg_delay_minutes": fields.Float(example=0.0),
+        "weather_condition": fields.String(example="clear"),
+    },
+)
 
-prediction_response = api.model("DelayPredictionResponse", {
-    "flight_id":               fields.String(),
-    "delay_probability":       fields.Float(),
-    "delay_tier":              fields.String(),
-    "expected_delay_minutes":  fields.Float(),
-    "carrier_risk_score":      fields.Float(),
-    "shap_features":           fields.Raw(),
-    "latency_ms":              fields.Float(),
-})
+prediction_response = api.model(
+    "DelayPredictionResponse",
+    {
+        "flight_id": fields.String(),
+        "delay_probability": fields.Float(),
+        "delay_tier": fields.String(),
+        "expected_delay_minutes": fields.Float(),
+        "carrier_risk_score": fields.Float(),
+        "shap_features": fields.Raw(),
+        "latency_ms": fields.Float(),
+    },
+)
 
 # ─── API key auth ─────────────────────────────────────────────────────────────
 
-_API_KEY    = os.getenv("API_KEY")
+_API_KEY = os.getenv("API_KEY")
 _OPEN_PATHS = {"/health", "/metrics", "/swagger.json"}
 
 
@@ -230,7 +243,9 @@ def _check_api_key():
         return
     if request.headers.get("X-Api-Key", "") != _API_KEY:
         REQUEST_COUNT.labels(endpoint="auth", status="401").inc()
-        return jsonify({"error": "Unauthorized", "detail": "Invalid or missing X-Api-Key header"}), 401
+        return jsonify(
+            {"error": "Unauthorized", "detail": "Invalid or missing X-Api-Key header"}
+        ), 401
 
 
 @app.before_request
@@ -245,6 +260,7 @@ def _add_request_id_header(response):
 
 
 # ─── Error handlers ───────────────────────────────────────────────────────────
+
 
 @api.errorhandler(Exception)
 def handle_generic(e):
@@ -264,6 +280,7 @@ def rate_limit_exceeded(e):
 
 # ─── Core scoring logic ───────────────────────────────────────────────────────
 
+
 def _predict_flight(flight: dict) -> dict:
     """Run feature engineering → ensemble → SHAP for one flight record."""
     start = time.perf_counter()
@@ -278,23 +295,31 @@ def _predict_flight(flight: dict) -> dict:
             if col in df.columns:
                 X[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
     else:
-        exclude = {"flight_id", "carrier_code", "origin", "destination",
-                   "scheduled_departure", "aircraft_type", "weather_condition"}
+        exclude = {
+            "flight_id",
+            "carrier_code",
+            "origin",
+            "destination",
+            "scheduled_departure",
+            "aircraft_type",
+            "weather_condition",
+        }
         feat_cols = [c for c in df.select_dtypes(include="number").columns if c not in exclude]
         X = df[feat_cols].fillna(0)
 
-    delay_prob   = 0.3
+    delay_prob = 0.3
     shap_features: dict = {}
 
     if _ensemble is not None:
         delay_prob = float(_ensemble.predict_proba(X)[0])
         try:
-            explanations  = _ensemble.explain(X)
+            explanations = _ensemble.explain(X)
             shap_features = explanations[0].get("shap_features", {})
         except Exception as exc:
             logger.debug("SHAP explain failed: {}", exc)
     else:
         import random
+
         delay_prob = round(random.uniform(0.05, 0.90), 4)
 
     # Tier classification
@@ -314,7 +339,7 @@ def _predict_flight(flight: dict) -> dict:
     carrier_risk = 0.5
     if _carrier_risk_scorer is not None:
         try:
-            risk_result  = _carrier_risk_scorer.score_carrier(
+            risk_result = _carrier_risk_scorer.score_carrier(
                 flight.get("carrier_code", "XX"), pd.DataFrame()
             )
             carrier_risk = risk_result.get("risk_score", 0.5)
@@ -325,17 +350,18 @@ def _predict_flight(flight: dict) -> dict:
     DELAY_PROB_HISTOGRAM.observe(delay_prob)
 
     return {
-        "flight_id":              flight.get("flight_id"),
-        "delay_probability":      round(delay_prob, 6),
-        "delay_tier":             delay_tier,
+        "flight_id": flight.get("flight_id"),
+        "delay_probability": round(delay_prob, 6),
+        "delay_tier": delay_tier,
         "expected_delay_minutes": expected_delay_minutes,
-        "carrier_risk_score":     round(carrier_risk, 4),
-        "shap_features":          {k: round(v, 6) for k, v in list(shap_features.items())[:10]},
-        "latency_ms":             round(latency_ms, 2),
+        "carrier_risk_score": round(carrier_risk, 4),
+        "shap_features": {k: round(v, 6) for k, v in list(shap_features.items())[:10]},
+        "latency_ms": round(latency_ms, 2),
     }
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
+
 
 @ns.route("/health")
 class HealthCheck(Resource):
@@ -351,6 +377,7 @@ class HealthCheck(Resource):
 class Metrics(Resource):
     def get(self):
         from flask import Response
+
         return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 
@@ -358,15 +385,15 @@ class Metrics(Resource):
 class ModelInfo(Resource):
     def get(self):
         return {
-            "ensemble_loaded":       _ensemble is not None,
-            "carrier_risk_loaded":   _carrier_risk_scorer is not None,
-            "feature_count":         len(_feature_cols),
-            "version":               "1.0.0",
-            "delay_tiers":           ["ON_TIME", "MINOR", "MODERATE", "SEVERE"],
+            "ensemble_loaded": _ensemble is not None,
+            "carrier_risk_loaded": _carrier_risk_scorer is not None,
+            "feature_count": len(_feature_cols),
+            "version": "1.0.0",
+            "delay_tiers": ["ON_TIME", "MINOR", "MODERATE", "SEVERE"],
             "thresholds": {
-                "severe":   THRESHOLD_SEVERE,
+                "severe": THRESHOLD_SEVERE,
                 "moderate": THRESHOLD_MODERATE,
-                "minor":    THRESHOLD_MINOR,
+                "minor": THRESHOLD_MINOR,
             },
         }
 
@@ -423,9 +450,7 @@ class CarrierRisk(Resource):
             return {"error": "Carrier risk scorer not loaded."}, 503
 
         try:
-            profile = _carrier_risk_scorer.score_carrier(
-                carrier_code.upper(), pd.DataFrame()
-            )
+            profile = _carrier_risk_scorer.score_carrier(carrier_code.upper(), pd.DataFrame())
             REQUEST_COUNT.labels(endpoint="carrier_risk", status="200").inc()
             return profile, 200
         except Exception as exc:
@@ -437,7 +462,7 @@ class CarrierRisk(Resource):
 class RouteAnalysis(Resource):
     def get(self):
         origin = request.args.get("origin", "").upper()
-        dest   = request.args.get("dest", "").upper()
+        dest = request.args.get("dest", "").upper()
 
         if not origin or not dest:
             return {"error": "Query params 'origin' and 'dest' are required."}, 400
@@ -461,23 +486,26 @@ class WeatherImpact(Resource):
     """Return delay probability increase by weather condition and time of day."""
 
     _WEATHER_IMPACT = {
-        "clear": {"delay_multiplier": 1.00, "avg_added_minutes": 0,   "severity": "none"},
-        "rain":  {"delay_multiplier": 1.28, "avg_added_minutes": 12,  "severity": "low"},
-        "wind":  {"delay_multiplier": 1.35, "avg_added_minutes": 18,  "severity": "medium"},
-        "fog":   {"delay_multiplier": 1.62, "avg_added_minutes": 35,  "severity": "high"},
-        "snow":  {"delay_multiplier": 2.14, "avg_added_minutes": 58,  "severity": "severe"},
+        "clear": {"delay_multiplier": 1.00, "avg_added_minutes": 0, "severity": "none"},
+        "rain": {"delay_multiplier": 1.28, "avg_added_minutes": 12, "severity": "low"},
+        "wind": {"delay_multiplier": 1.35, "avg_added_minutes": 18, "severity": "medium"},
+        "fog": {"delay_multiplier": 1.62, "avg_added_minutes": 35, "severity": "high"},
+        "snow": {"delay_multiplier": 2.14, "avg_added_minutes": 58, "severity": "severe"},
     }
-    _PEAK_HOUR_MULTIPLIER = 1.22   # peak travel hours compound weather delays
-    _HOLIDAY_MULTIPLIER   = 1.18
+    _PEAK_HOUR_MULTIPLIER = 1.22  # peak travel hours compound weather delays
+    _HOLIDAY_MULTIPLIER = 1.18
 
     def get(self):
-        weather   = request.args.get("weather", "clear").lower()
-        hour      = int(request.args.get("hour", 12))
+        weather = request.args.get("weather", "clear").lower()
+        hour = int(request.args.get("hour", 12))
         is_holiday = request.args.get("is_holiday", "false").lower() == "true"
 
         impact = self._WEATHER_IMPACT.get(weather)
         if impact is None:
-            return {"error": f"Unknown weather condition '{weather}'.", "valid": list(self._WEATHER_IMPACT)}, 400
+            return {
+                "error": f"Unknown weather condition '{weather}'.",
+                "valid": list(self._WEATHER_IMPACT),
+            }, 400
 
         multiplier = impact["delay_multiplier"]
         if 6 <= hour <= 9 or 16 <= hour <= 20:
@@ -490,14 +518,16 @@ class WeatherImpact(Resource):
 
         REQUEST_COUNT.labels(endpoint="weather_impact", status="200").inc()
         return {
-            "weather_condition":    weather,
-            "hour_of_day":          hour,
-            "is_holiday":           is_holiday,
-            "delay_multiplier":     round(multiplier, 3),
-            "avg_added_delay_min":  round(impact["avg_added_minutes"] * (multiplier / impact["delay_multiplier"]), 1),
+            "weather_condition": weather,
+            "hour_of_day": hour,
+            "is_holiday": is_holiday,
+            "delay_multiplier": round(multiplier, 3),
+            "avg_added_delay_min": round(
+                impact["avg_added_minutes"] * (multiplier / impact["delay_multiplier"]), 1
+            ),
             "adjusted_on_time_pct": round(adjusted_on_time, 1),
-            "severity":             impact["severity"],
-            "recommendation":       _weather_recommendation(weather, multiplier),
+            "severity": impact["severity"],
+            "recommendation": _weather_recommendation(weather, multiplier),
         }, 200
 
 
@@ -507,7 +537,9 @@ def _weather_recommendation(weather: str, multiplier: float) -> str:
     if multiplier < 1.4:
         return "Minor delays possible. Allow extra buffer time for connections."
     if multiplier < 1.8:
-        return "Moderate delays likely. Consider rebooking connecting flights with < 90-min layovers."
+        return (
+            "Moderate delays likely. Consider rebooking connecting flights with < 90-min layovers."
+        )
     return "Severe delays expected. Check airline alerts and consider flexible rebooking."
 
 
@@ -527,9 +559,9 @@ class DelayStats(Resource):
                 try:
                     profile = _carrier_risk_scorer.score_carrier(code)
                     carriers_data[code] = {
-                        "on_time_pct":  round((1 - profile.get("delay_rate", 0.25)) * 100, 1),
+                        "on_time_pct": round((1 - profile.get("delay_rate", 0.25)) * 100, 1),
                         "avg_delay_min": profile.get("mean_delay_minutes", 35),
-                        "risk_tier":    profile.get("risk_tier", "MEDIUM"),
+                        "risk_tier": profile.get("risk_tier", "MEDIUM"),
                     }
                 except Exception:
                     pass

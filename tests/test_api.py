@@ -38,8 +38,7 @@ class TestModelInfo:
 
 class TestPredict:
     def test_predict_valid(self, client, patch_models, valid_flight):
-        r = client.post("/predict", data=json.dumps(valid_flight),
-                        content_type="application/json")
+        r = client.post("/predict", data=json.dumps(valid_flight), content_type="application/json")
         assert r.status_code == 200
         data = r.get_json()
         assert "delay_probability" in data

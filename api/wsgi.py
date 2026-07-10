@@ -9,7 +9,6 @@ Usage:
 from __future__ import annotations
 
 import sys
-import os
 from pathlib import Path
 
 # Ensure project root is on sys.path so `from models.xxx import ...` works
@@ -17,8 +16,9 @@ _ROOT = Path(__file__).parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from api.app import app, _load_models
 from loguru import logger
+
+from api.app import _load_models, app
 
 logger.info("WSGI startup — loading Flight-Guard models…")
 try:

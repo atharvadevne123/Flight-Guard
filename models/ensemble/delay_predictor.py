@@ -6,44 +6,43 @@ SHAP explanations per prediction, MLflow tracking.
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
-import joblib
-import shap
 from pathlib import Path
-from loguru import logger
 from typing import Optional
 
-from sklearn.ensemble import RandomForestClassifier, VotingClassifier
-from sklearn.calibration import CalibratedClassifierCV
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import (
-    roc_auc_score,
-    average_precision_score,
-    brier_score_loss,
-)
-from sklearn.preprocessing import StandardScaler
-import xgboost as xgb
+import joblib
 import lightgbm as lgb
 import mlflow
 import mlflow.sklearn
-
+import numpy as np
+import pandas as pd
+import shap
+import xgboost as xgb
+from loguru import logger
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
+from sklearn.metrics import (
+    average_precision_score,
+    brier_score_loss,
+    roc_auc_score,
+)
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import StandardScaler
 
 ARTIFACT_DIR = Path(__file__).parent / "artifacts"
 ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Delay tier thresholds (minutes)
-THRESHOLD_SEVERE   = 0.80   # P(delay) → SEVERE
-THRESHOLD_MODERATE = 0.55   # P(delay) → MODERATE
-THRESHOLD_MINOR    = 0.30   # P(delay) → MINOR
+THRESHOLD_SEVERE = 0.80  # P(delay) → SEVERE
+THRESHOLD_MODERATE = 0.55  # P(delay) → MODERATE
+THRESHOLD_MINOR = 0.30  # P(delay) → MINOR
 # Below MINOR → ON_TIME
 
 # Expected delay minutes per tier (median BTS statistics)
 TIER_EXPECTED_MINUTES = {
-    "SEVERE":   95.0,
+    "SEVERE": 95.0,
     "MODERATE": 42.0,
-    "MINOR":    18.0,
-    "ON_TIME":   0.0,
+    "MINOR": 18.0,
+    "ON_TIME": 0.0,
 }
 
 
@@ -76,7 +75,7 @@ class DelayPredictor:
             learning_rate=0.05,
             subsample=0.8,
             colsample_bytree=0.8,
-            scale_pos_weight=3,   # ~25% delay rate in BTS data
+            scale_pos_weight=3,  # ~25% delay rate in BTS data
             eval_metric="auc",
             tree_method="hist",
             random_state=random_state,
@@ -103,7 +102,7 @@ class DelayPredictor:
 
         self.xgb_model = xgb.XGBClassifier(**(xgb_params or _xgb))
         self.lgb_model = lgb.LGBMClassifier(**(lgb_params or _lgb))
-        self.rf_model  = RandomForestClassifier(**(rf_params or _rf))
+        self.rf_model = RandomForestClassifier(**(rf_params or _rf))
 
         self.ensemble: Optional[CalibratedClassifierCV] = None
         self.scaler = StandardScaler()
@@ -140,14 +139,15 @@ class DelayPredictor:
 
         logger.info(
             "Training DelayPredictor on {:,} samples (delay rate: {:.2%}).",
-            len(y_arr), y_arr.mean(),
+            len(y_arr),
+            y_arr.mean(),
         )
 
         voter = VotingClassifier(
             estimators=[
                 ("xgb", self.xgb_model),
                 ("lgb", self.lgb_model),
-                ("rf",  self.rf_model),
+                ("rf", self.rf_model),
             ],
             voting="soft",
             weights=[0.4, 0.4, 0.2],
@@ -161,13 +161,15 @@ class DelayPredictor:
         if mlflow_run:
             mlflow.set_experiment("flight_guard_delay_prediction")
             with mlflow.start_run(run_name="delay_ensemble"):
-                mlflow.log_params({
-                    "calibration": self.calibration_method,
-                    "n_train": len(y_arr),
-                    "delay_rate": float(y_arr.mean()),
-                    "xgb_n_estimators": self.xgb_model.n_estimators,
-                    "lgb_n_estimators": self.lgb_model.n_estimators,
-                })
+                mlflow.log_params(
+                    {
+                        "calibration": self.calibration_method,
+                        "n_train": len(y_arr),
+                        "delay_rate": float(y_arr.mean()),
+                        "xgb_n_estimators": self.xgb_model.n_estimators,
+                        "lgb_n_estimators": self.lgb_model.n_estimators,
+                    }
+                )
                 self.ensemble.fit(X_arr, y_arr)
                 self._log_metrics(X_arr, y_arr, eval_X, eval_y)
         else:
@@ -175,10 +177,7 @@ class DelayPredictor:
 
         # Build SHAP explainer on the first XGBoost base estimator
         try:
-            base_xgb = (
-                self.ensemble.calibrated_classifiers_[0]
-                .estimator.named_estimators_["xgb"]
-            )
+            base_xgb = self.ensemble.calibrated_classifiers_[0].estimator.named_estimators_["xgb"]
             self._shap_explainer = shap.TreeExplainer(base_xgb)
             logger.success("SHAP TreeExplainer initialised on XGBoost base learner.")
         except Exception as exc:
@@ -195,9 +194,7 @@ class DelayPredictor:
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """Return delay probabilities (shape: [n_samples,])."""
         self._check_fitted()
-        return self.ensemble.predict_proba(
-            self.scaler.transform(X.values.astype(float))
-        )[:, 1]
+        return self.ensemble.predict_proba(self.scaler.transform(X.values.astype(float)))[:, 1]
 
     def predict_with_tier(self, X: pd.DataFrame) -> list[dict]:
         """Return full prediction dicts including tier and expected delay minutes."""
@@ -205,11 +202,13 @@ class DelayPredictor:
         results = []
         for p in proba:
             tier = self._classify_tier(p)
-            results.append({
-                "delay_probability": round(float(p), 6),
-                "delay_tier": tier,
-                "expected_delay_minutes": TIER_EXPECTED_MINUTES[tier],
-            })
+            results.append(
+                {
+                    "delay_probability": round(float(p), 6),
+                    "delay_tier": tier,
+                    "expected_delay_minutes": TIER_EXPECTED_MINUTES[tier],
+                }
+            )
         return results
 
     def explain(self, X: pd.DataFrame, max_features: int = 10) -> list[dict]:
@@ -230,13 +229,14 @@ class DelayPredictor:
                 if not isinstance(self._shap_explainer.expected_value, list)
                 else float(self._shap_explainer.expected_value[1])
             )
-            results.append({
-                "shap_features": {
-                    self.feature_names[j]: round(float(sv[i][j]), 6)
-                    for j in top_idx
-                },
-                "base_value": round(base_val, 6),
-            })
+            results.append(
+                {
+                    "shap_features": {
+                        self.feature_names[j]: round(float(sv[i][j]), 6) for j in top_idx
+                    },
+                    "base_value": round(base_val, 6),
+                }
+            )
         return results
 
     # ------------------------------------------------------------------

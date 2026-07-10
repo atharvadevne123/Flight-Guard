@@ -14,11 +14,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import stats
-
 
 MONITOR_DIR = Path(__file__).parent / "reports"
 MONITOR_DIR.mkdir(parents=True, exist_ok=True)
@@ -97,7 +95,8 @@ class FlightDriftMonitor:
             }
 
         numeric_cols = [
-            c for c in current.select_dtypes(include="number").columns
+            c
+            for c in current.select_dtypes(include="number").columns
             if c in self._reference.columns
         ]
 
@@ -108,20 +107,17 @@ class FlightDriftMonitor:
         # Try Evidently for richer diagnostics; fall back gracefully
         evidently_info = self._run_evidently(current, numeric_cols)
 
-        drift_detected = (
-            len(drifted_features) > 0
-            or abs(score_shift) > self.score_shift_threshold
-        )
+        drift_detected = len(drifted_features) > 0 or abs(score_shift) > self.score_shift_threshold
 
         summary = {
-            "run_timestamp":   datetime.now(timezone.utc).isoformat(),
-            "batch_size":      len(current),
-            "drift_detected":  drift_detected,
+            "run_timestamp": datetime.now(timezone.utc).isoformat(),
+            "batch_size": len(current),
+            "drift_detected": drift_detected,
             "drifted_features": drifted_features,
-            "ks_results":      ks_results,
-            "score_shift":     round(score_shift, 4),
-            "missing_ratio":   round(missing_ratio, 4),
-            "evidently":       evidently_info,
+            "ks_results": ks_results,
+            "score_shift": round(score_shift, 4),
+            "missing_ratio": round(missing_ratio, 4),
+            "evidently": evidently_info,
             "n_numeric_tested": len(numeric_cols),
         }
 
@@ -130,7 +126,8 @@ class FlightDriftMonitor:
         if drift_detected:
             logger.warning(
                 "FLIGHT DATA DRIFT DETECTED — {} features drifted, score shift {:.4f}.",
-                len(drifted_features), score_shift,
+                len(drifted_features),
+                score_shift,
             )
         else:
             logger.info("No significant drift detected. Flight data distribution stable.")
@@ -141,9 +138,7 @@ class FlightDriftMonitor:
     # KS tests
     # ------------------------------------------------------------------
 
-    def _run_ks_tests(
-        self, current: pd.DataFrame, cols: list[str]
-    ) -> tuple[dict, list[str]]:
+    def _run_ks_tests(self, current: pd.DataFrame, cols: list[str]) -> tuple[dict, list[str]]:
         ks_results: dict = {}
         drifted: list[str] = []
 
@@ -159,8 +154,8 @@ class FlightDriftMonitor:
 
             ks_results[col] = {
                 "statistic": round(float(stat), 6),
-                "p_value":   round(float(p_val), 6),
-                "drifted":   is_drifted,
+                "p_value": round(float(p_val), 6),
+                "drifted": is_drifted,
             }
             if is_drifted:
                 drifted.append(col)
@@ -174,7 +169,7 @@ class FlightDriftMonitor:
     def _run_evidently(self, current: pd.DataFrame, cols: list[str]) -> dict:
         try:
             from evidently import ColumnMapping
-            from evidently.metrics import DatasetDriftMetric, DataDriftTable
+            from evidently.metrics import DataDriftTable, DatasetDriftMetric
             from evidently.report import Report
 
             ref = self._reference[cols].copy()
@@ -184,17 +179,17 @@ class FlightDriftMonitor:
             if "delay_probability" in current.columns:
                 col_mapping.prediction = "delay_probability"
 
-            report = Report(metrics=[
-                DatasetDriftMetric(drift_share_threshold=0.20),
-                DataDriftTable(num_stattest="ks"),
-            ])
+            report = Report(
+                metrics=[
+                    DatasetDriftMetric(drift_share_threshold=0.20),
+                    DataDriftTable(num_stattest="ks"),
+                ]
+            )
             report.run(reference_data=ref, current_data=cur, column_mapping=col_mapping)
             result = report.as_dict()
             metrics = result.get("metrics", [])
 
-            ds_metric = next(
-                (m for m in metrics if m.get("metric") == "DatasetDriftMetric"), {}
-            )
+            ds_metric = next((m for m in metrics if m.get("metric") == "DatasetDriftMetric"), {})
             return {
                 "dataset_drift": ds_metric.get("result", {}).get("dataset_drift", False),
                 "share_drifted": ds_metric.get("result", {}).get("share_of_drifted_columns", 0.0),
@@ -216,9 +211,7 @@ class FlightDriftMonitor:
         ref_mean = float(self._reference[col].mean())
         cur_mean = float(current[col].mean())
         shift = cur_mean - ref_mean
-        logger.debug(
-            "Score shift: {:.4f} (ref={:.4f}, cur={:.4f})", shift, ref_mean, cur_mean
-        )
+        logger.debug("Score shift: {:.4f} (ref={:.4f}, cur={:.4f})", shift, ref_mean, cur_mean)
         return shift
 
     def _check_missing(self, current: pd.DataFrame) -> float:
@@ -240,6 +233,4 @@ class FlightDriftMonitor:
     def _load_reference(self) -> None:
         if REFERENCE_PATH.exists():
             self._reference = pd.read_parquet(REFERENCE_PATH)
-            logger.info(
-                "Flight drift reference loaded ({:,} rows).", len(self._reference)
-            )
+            logger.info("Flight drift reference loaded ({:,} rows).", len(self._reference))

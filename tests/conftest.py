@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 
 @pytest.fixture
 def client():
     import sys
     from pathlib import Path
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from api.app import app
+
     app.config["TESTING"] = True
     with app.test_client() as c:
         yield c
@@ -21,7 +24,9 @@ def patch_models(monkeypatch):
 
     mock_ensemble = MagicMock()
     mock_ensemble.predict_proba.return_value = [0.65]
-    mock_ensemble.explain.return_value = [{"shap_features": {"departure_hour": 0.15, "carrier_risk": 0.12}}]
+    mock_ensemble.explain.return_value = [
+        {"shap_features": {"departure_hour": 0.15, "carrier_risk": 0.12}}
+    ]
 
     mock_risk = MagicMock()
     mock_risk.score_carrier.return_value = {
