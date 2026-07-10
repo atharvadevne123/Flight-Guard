@@ -104,9 +104,9 @@ def test_upload_dataset_aborts_on_failure(client):
         mock.patch.object(client, "create_transaction", return_value={"rid": "txn-2"}),
         mock.patch.object(client._session, "post", return_value=bad),
         mock.patch.object(client, "abort_transaction", return_value={}) as abort,
+        pytest.raises(FoundryError),
     ):
-        with pytest.raises(FoundryError):
-            client.upload_dataset(df, "ri.x")
+        client.upload_dataset(df, "ri.x")
     abort.assert_called_once_with("ri.x", "txn-2")
 
 
